@@ -3,6 +3,18 @@ import json
 import urllib.request
 from datetime import datetime, timezone, timedelta, date
 
+def get_random_quote():
+    """Fetches a random inspirational quote from a free API."""
+    url = "https://dummyjson.com/quotes/random"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            return f'"{data["quote"]}" — {data["author"]}'
+    except Exception:
+        # Fallback quote in case the API call times out or fails
+        return '"The best way to predict the future is to create it." — Abraham Lincoln'
+
 def generate_progress_message():
     # Set explicitly to GMT+5 (Asia/Tashkent)
     tashkent_tz = timezone(timedelta(hours=5))
@@ -33,7 +45,9 @@ def generate_progress_message():
         may_25 = date(current_year + 1, 5, 25)
     days_until_may_25 = (may_25 - today).days
 
-    # Build Message Lines
+    # Fetch a random quote
+    quote = get_random_quote()
+
     # Build Message Lines
     lines = [
         f"{bar} {int(round(percentage))}%",
@@ -41,7 +55,7 @@ def generate_progress_message():
         f"{days_until_may_25} days until 25 May"
     ]
 
-    # Special Date Triggers (added before the quote)
+    # Special Date Triggers
     if today.month == 12 and today.day == 31:
         lines.append("\n🎉 Happy New Year's Eve! Happy New Year! 🥳✨")
     elif today.month == 5 and today.day == 25:
@@ -74,6 +88,10 @@ if __name__ == "__main__":
     
     if not bot_token or not channel_id:
         raise ValueError("Environment variables TELEGRAM_BOT_TOKEN and TELEGRAM_CHANNEL_ID are required.")
+        
+    message = generate_progress_message()
+    send_telegram_message(bot_token, channel_id, message)
+    print("Message successfully posted to Telegram!")
         
     message = generate_progress_message()
     send_telegram_message(bot_token, channel_id, message)

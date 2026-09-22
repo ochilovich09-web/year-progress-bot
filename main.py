@@ -34,17 +34,21 @@ def generate_progress_message():
     days_until_may_25 = (may_25 - today).days
 
     # Build Message Lines
+    # Build Message Lines
     lines = [
         f"{bar} {int(round(percentage))}%",
         f"{days_until_dec_31} days until 31 December",
         f"{days_until_may_25} days until 25 May"
     ]
 
-    # Special Date Triggers
+    # Special Date Triggers (added before the quote)
     if today.month == 12 and today.day == 31:
         lines.append("\n🎉 Happy New Year's Eve! Happy New Year! 🥳✨")
     elif today.month == 5 and today.day == 25:
         lines.append("\n✨ Happy 25th of May! Wishing you a great holiday! 🌟")
+
+    # Add Quote at the bottom
+    lines.append(f"\n{quote}")
 
     return "\n".join(lines)
 

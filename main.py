@@ -1,57 +1,218 @@
+```python
 import json
 import os
 import urllib.error
+import urllib.parse
 import urllib.request
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta, timezone
 
-TASHKENT_TZ = timezone(timedelta(hours=5))  # GMT+5 (Asia/Tashkent)
+
+# =========================
+# Configuration
+# =========================
+
+TASHKENT_TZ = timezone(timedelta(hours=5))
 BAR_LENGTH = 20
 
 
-def get_random_quote():
-  """Fetches a random inspirational quote from a free API."""
-  url = "https://dummyjson.com/quotes/random"
-  try:
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=5) as response:
-      data = json.loads(response.read().decode("utf-8"))
-      return f'"{data["quote"]}" — {data["author"]}'
-  except Exception:
-    # Fallback quote in case the API call times out or fails
-    return '"The only way to do great work is to love what you do." — Steve Jobs'
+# =========================
+# Quote
+# =========================
 
+def get_random_quote():
+    """Fetch a random inspirational quote."""
+    url = "https://dummyjson.com/quotes/random"
+
+    try:
+        request = urllib.request.Request(
+            url,
+            headers={"User-Agent": "YearProgressBot/1.0"}
+        )
+
+        with urllib.request.urlopen(request, timeout=5) as response:
+            data = json.loads(response.read().decode("utf-8"))
+
+        return f'"{data["quote"]}" — {data["author"]}'
+
+    except Exception:
+        return '"The only way to do great work is to love what you do." — Steve Jobs'
+
+
+# =========================
+# Year calculations
+# =========================
 
 def is_leap(year):
-  return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+    return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
 
 
 def get_percent(day_of_year, total_days):
-  """Whole-day percent, floored (e.g. day 73 of 365 -> 20)."""
-  return day_of_year * 100 // total_days
+    """Return whole-day percentage, rounded down."""
+    return day_of_year * 100 // total_days
 
 
 def get_year_progress(today):
-  total_days = 366 if is_leap(today.year) else 365
-  doy = today.timetuple().tm_yday
-  percent_now = get_percent(doy, total_days)
-  percent_yesterday = get_percent(doy - 1, total_days)
-  return percent_now, percent_now != percent_yesterday
+    total_days = 366 if is_leap(today.year) else 365
 
+    day_of_year = today.timetuple().tm_yday
+
+    percentage = get_percent(day_of_year, total_days)
+
+    yesterday_percentage = get_percent(
+        day_of_year - 1,
+        total_days
+    )
+
+    percentage_changed = percentage != yesterday_percentage
+
+    return percentage, percentage_changed
+
+
+# =========================
+# Message generation
+# =========================
 
 def generate_progress_message(today, percentage):
-  current_year = today.year
+    current_year = today.year
 
-  # Progress bar
-  filled_blocks = BAR_LENGTH * percentage // 100
-  bar = "▓" * filled_blocks + "░" * (BAR_LENGTH - filled_blocks)
+    # Progress bar
+    filled_blocks = BAR_LENGTH * percentage // 100
 
-  # Countdown to 31 December
-    # Countdown to 31 December
-  dec_31 = date(current_year, 12, 31)
-  days_until_dec_31 = (dec_31 - today).days
+    bar = (
+        "▓" * filled_blocks
+        + "░" * (BAR_LENGTH - filled_blocks)
+    )
 
-  # Countdown to 25 May
-  may_25 = date(current_year, 5, 25)
-  if today > may_25:
-    may_25 = date(current_year + 1, 5, 25)
-  days_until_may_25 = (may_25 - today).days
+    # Days until December 31
+    dec_31 = date(current_year, 12, 31)
+    days_until_dec_31 = (dec_31 - today).days
+
+    # Days until May 25
+    may_25 = date(current_year, 5, 25)
+
+    if today > may_25:
+        may_25 = date(current_year + 1, 5, 25)
+
+    days_until_may_25 = (may_25 - today).days
+
+    # Quote
+    quote = get_random_quote()
+
+    # Final Telegram message
+    message = f"""📅 <b>{current_year} YEAR PROGRESS</b>
+
+<b>{percentage}%</b> complete
+
+<code>{bar}</code>
+
+📆 Day {today.timetuple().tm_yday} of {366 if is_leap(current_year) else 365}
+
+⏳ <b>{days_until_dec_31}</b> days until December 31
+🎯 <b>{days_until_may_25}</b> days until May 25
+
+💭 <i>{quote}</i>
+"""
+
+    return message
+
+
+# =========================
+# Telegram
+# =========================
+
+def send_telegram_message(message):
+    """Send a message to the configured Telegram channel."""
+
+    token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    channel_id = os.environ.get("TELEGRAM_CHANNEL_ID")
+
+    if not token:
+        raise RuntimeError(
+            "TELEGRAM_BOT_TOKEN is missing from GitHub Secrets."
+        )
+
+    if not channel_id:
+        raise RuntimeError(
+            "TELEGRAM_CHANNEL_ID is missing from GitHub Secrets."
+        )
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+
+    data = urllib.parse.urlencode({
+        "chat_id": channel_id,
+        "text": message,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": "true",
+    }).encode("utf-8")
+
+    request = urllib.request.Request(
+        url,
+        data=data,
+        method="POST",
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            result = json.loads(
+                response.read().decode("utf-8")
+            )
+
+        if not result.get("ok"):
+            raise RuntimeError(
+                f"Telegram API error: {result}"
+            )
+
+        print("✅ Telegram message sent successfully.")
+
+    except urllib.error.HTTPError as error:
+        error_body = error.read().decode("utf-8", errors="replace")
+
+        raise RuntimeError(
+            f"Telegram HTTP error {error.code}: {error_body}"
+        ) from error
+
+    except urllib.error.URLError as error:
+        raise RuntimeError(
+            f"Could not connect to Telegram: {error.reason}"
+        ) from error
+
+
+# =========================
+# Main
+# =========================
+
+def main():
+    # Get today's date in Tashkent
+    today = date.today()
+
+    print(f"📅 Date: {today}")
+
+    percentage, percentage_changed = get_year_progress(today)
+
+    print(f"📊 Year progress: {percentage}%")
+    print(f"📈 Percentage changed today: {percentage_changed}")
+
+    message = generate_progress_message(
+        today,
+        percentage
+    )
+
+    print("\n--- Message ---")
+    print(message)
+    print("----------------\n")
+
+    # FORCE_POST=1 allows GitHub Actions to always post.
+    force_post = os.environ.get("FORCE_POST", "0") == "1"
+
+    if percentage_changed or force_post:
+        send_telegram_message(message)
+    else:
+        print("ℹ️ Percentage did not change. No post needed.")
+
+
+if __name__ == "__main__":
+    main()
+```

@@ -1,4 +1,3 @@
-```yaml
 name: Year Progress
 
 on:
@@ -27,4 +26,3 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
           FORCE_POST: "1"
-```

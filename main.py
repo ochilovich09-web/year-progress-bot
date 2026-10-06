@@ -46,4 +46,12 @@ def generate_progress_message(today, percentage):
   bar = "▓" * filled_blocks + "░" * (BAR_LENGTH - filled_blocks)
 
   # Countdown to 31 December
-  dec_31 =
+    # Countdown to 31 December
+  dec_31 = date(current_year, 12, 31)
+  days_until_dec_31 = (dec_31 - today).days
+
+  # Countdown to 25 May
+  may_25 = date(current_year, 5, 25)
+  if today > may_25:
+    may_25 = date(current_year + 1, 5, 25)
+  days_until_may_25 = (may_25 - today).days

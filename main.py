@@ -1,4 +1,3 @@
-```python
 import json
 import os
 import urllib.error
@@ -326,4 +325,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
+

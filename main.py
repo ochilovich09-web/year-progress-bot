@@ -3,14 +3,19 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import date
-
-
-BAR_LENGTH = 21
+from datetime import date, datetime, timedelta, timezone
 
 
 # =========================
-# Quote
+# Configuration
+# =========================
+
+BAR_LENGTH = 21
+TASHKENT_TZ = timezone(timedelta(hours=5))
+
+
+# =========================
+# Random quote
 # =========================
 
 def get_random_quote():
@@ -21,16 +26,27 @@ def get_random_quote():
     try:
         request = urllib.request.Request(
             url,
-            headers={"User-Agent": "YearProgressBot/1.0"}
+            headers={
+                "User-Agent": "YearProgressBot/1.0"
+            }
         )
 
-        with urllib.request.urlopen(request, timeout=5) as response:
-            data = json.loads(response.read().decode("utf-8"))
+        with urllib.request.urlopen(
+            request,
+            timeout=5
+        ) as response:
+
+            data = json.loads(
+                response.read().decode("utf-8")
+            )
 
         return f'"{data["quote"]}" — {data["author"]}'
 
     except Exception:
-        return '"The only way to do great work is to love what you do." — Steve Jobs'
+        return (
+            '"The only way to do great work is to love '
+            'what you do." — Steve Jobs'
+        )
 
 
 # =========================
@@ -38,19 +54,25 @@ def get_random_quote():
 # =========================
 
 def is_leap(year):
-    return year % 4 == 0 and (
-        year % 100 != 0 or year % 400 == 0
+    return (
+        year % 4 == 0
+        and (year % 100 != 0 or year % 400 == 0)
     )
 
 
 def get_percent(day_of_year, total_days):
-    """Return whole-day percentage, rounded down."""
+    """Calculate whole-day percentage."""
 
     return day_of_year * 100 // total_days
 
 
 def get_year_progress(today):
-    total_days = 366 if is_leap(today.year) else 365
+    """Return today's year percentage and whether it changed."""
+
+    total_days = (
+        366 if is_leap(today.year)
+        else 365
+    )
 
     day_of_year = today.timetuple().tm_yday
 
@@ -72,7 +94,7 @@ def get_year_progress(today):
 
 
 # =========================
-# Message
+# Generate message
 # =========================
 
 def generate_progress_message(today, percentage):
@@ -80,8 +102,7 @@ def generate_progress_message(today, percentage):
     current_year = today.year
 
     total_days = (
-        366
-        if is_leap(current_year)
+        366 if is_leap(current_year)
         else 365
     )
 
@@ -108,14 +129,14 @@ def generate_progress_message(today, percentage):
     # Days until December 31
     # -------------------------
 
-    dec_31 = date(
+    december_31 = date(
         current_year,
         12,
         31
     )
 
     days_until_dec_31 = (
-        dec_31 - today
+        december_31 - today
     ).days
 
     # -------------------------
@@ -140,16 +161,16 @@ def generate_progress_message(today, percentage):
     ).days
 
     # -------------------------
-    # Quote
+    # Random quote
     # -------------------------
 
     quote = get_random_quote()
 
     # -------------------------
-    # Final message
+    # Final Telegram message
     # -------------------------
 
-    message = f"""<code>{bar}</code> <b>{percentage}%</b>
+    message = f"""{bar} <b>{percentage}%</b>
 
 📆 Day {day_of_year} of {total_days}
 
@@ -162,11 +183,10 @@ def generate_progress_message(today, percentage):
 
 
 # =========================
-# Telegram
+# Send Telegram message
 # =========================
 
 def send_telegram_message(message):
-    """Send the generated message to the Telegram channel."""
 
     token = os.environ.get(
         "TELEGRAM_BOT_TOKEN"
@@ -178,12 +198,14 @@ def send_telegram_message(message):
 
     if not token:
         raise RuntimeError(
-            "TELEGRAM_BOT_TOKEN is missing from GitHub Secrets."
+            "TELEGRAM_BOT_TOKEN is missing "
+            "from GitHub Secrets."
         )
 
     if not channel_id:
         raise RuntimeError(
-            "TELEGRAM_CHANNEL_ID is missing from GitHub Secrets."
+            "TELEGRAM_CHANNEL_ID is missing "
+            "from GitHub Secrets."
         )
 
     url = (
@@ -205,7 +227,7 @@ def send_telegram_message(message):
         headers={
             "Content-Type":
                 "application/x-www-form-urlencoded"
-        },
+        }
     )
 
     try:
@@ -254,26 +276,15 @@ def send_telegram_message(message):
 
 def main():
 
-    # GitHub Actions runner uses UTC.
-    # The date calculation below is intentionally
-    # adjusted to Tashkent (UTC+5).
-
-    from datetime import (
-        datetime,
-        timedelta,
-        timezone
-    )
-
-    tashkent_timezone = timezone(
-        timedelta(hours=5)
-    )
+    # GitHub Actions runs in UTC.
+    # Convert it to Tashkent time (UTC+5).
 
     today = datetime.now(
-        tashkent_timezone
+        TASHKENT_TZ
     ).date()
 
     print(
-        f"📅 Date: {today}"
+        f"📅 Tashkent date: {today}"
     )
 
     percentage, percentage_changed = (
@@ -286,7 +297,7 @@ def main():
     )
 
     print(
-        f"📈 Percentage changed today: "
+        f"📈 Percentage changed: "
         f"{percentage_changed}"
     )
 
@@ -295,12 +306,12 @@ def main():
         percentage
     )
 
-    print("\n--- Message ---")
+    print("\n========== MESSAGE ==========")
     print(message)
-    print("----------------\n")
+    print("=============================\n")
 
     # FORCE_POST=1 makes GitHub Actions
-    # send the message every time the workflow runs.
+    # send the message every time it runs.
 
     force_post = (
         os.environ.get(
@@ -318,11 +329,17 @@ def main():
     else:
 
         print(
-            "ℹ️ Percentage did not change. "
-            "No post needed."
+            "ℹ️ Percentage has not changed."
+        )
+
+        print(
+            "ℹ️ Skipping Telegram post."
         )
 
 
+# =========================
+# Start
+# =========================
+
 if __name__ == "__main__":
     main()
-

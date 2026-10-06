@@ -34,3 +34,16 @@ def get_year_progress(today):
   total_days = 366 if is_leap(today.year) else 365
   doy = today.timetuple().tm_yday
   percent_now = get_percent(doy, total_days)
+  percent_yesterday = get_percent(doy - 1, total_days)
+  return percent_now, percent_now != percent_yesterday
+
+
+def generate_progress_message(today, percentage):
+  current_year = today.year
+
+  # Progress bar
+  filled_blocks = BAR_LENGTH * percentage // 100
+  bar = "▓" * filled_blocks + "░" * (BAR_LENGTH - filled_blocks)
+
+  # Countdown to 31 December
+  dec_31 =
